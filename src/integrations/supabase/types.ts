@@ -801,6 +801,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      seed_mock_data: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "veterinario" | "recepcao" | "groomer" | "financeiro"

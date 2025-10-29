@@ -20,8 +20,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    seedAndLoadStats();
   }, []);
+
+  const seedAndLoadStats = async () => {
+    try {
+      // First seed mock data if needed
+      const { error: seedError } = await supabase.rpc('seed_mock_data');
+      if (seedError && !seedError.message?.includes('already populated')) {
+        console.error('Erro ao popular dados mock:', seedError);
+      }
+      
+      // Then load stats
+      await loadStats();
+    } catch (error) {
+      console.error('Erro no seed:', error);
+    }
+  };
 
   const loadStats = async () => {
     try {
