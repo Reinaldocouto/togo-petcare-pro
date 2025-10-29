@@ -68,8 +68,14 @@ export default function Dashboard() {
         
         supabase
           .from('products')
-          .select('id, estoque_atual, estoque_minimo', { count: 'exact' })
-          .filter('estoque_atual', 'lte', 'estoque_minimo'),
+          .select('*')
+          .then(async (response) => {
+            if (response.data) {
+              const lowStock = response.data.filter(p => p.estoque_atual <= p.estoque_minimo);
+              return { data: lowStock, count: lowStock.length, error: null };
+            }
+            return response;
+          }),
         
         supabase
           .from('vaccination_records')
