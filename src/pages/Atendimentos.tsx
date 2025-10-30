@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Search, Pill, Syringe, ShoppingCart, Calendar } from "lucide-react";
+import { Plus, Search, Pill, Syringe, ShoppingCart, Calendar, FileText } from "lucide-react";
 
 interface Client {
   id: string;
@@ -65,6 +65,9 @@ export default function Atendimentos() {
   const [appointments, setAppointments] = useState<any[]>([]);
   
   const [open, setOpen] = useState(false);
+  const [viewRecordOpen, setViewRecordOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [recordDetails, setRecordDetails] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState("");
   const [selectedPet, setSelectedPet] = useState("");
   const [tipoAtendimento, setTipoAtendimento] = useState("");
@@ -262,6 +265,32 @@ export default function Atendimentos() {
   };
 
   const totalVenda = saleItems.reduce((sum, item) => sum + item.total, 0);
+
+  const viewRecordDetails = async (record: any) => {
+    setSelectedRecord(record);
+    
+    // Buscar detalhes completos do atendimento
+    const [vaccinationsRes, salesRes] = await Promise.all([
+      supabase
+        .from('vaccination_records')
+        .select('*, vaccines(nome, fabricante)')
+        .eq('pet_id', record.pet_id)
+        .eq('data_aplicacao', new Date(record.created_at).toISOString().split('T')[0]),
+      supabase
+        .from('sales')
+        .select('*, sale_items(*, products(nome), service_types(nome))')
+        .eq('client_id', record.pets?.clients?.id || '')
+        .gte('created_at', new Date(new Date(record.created_at).getTime() - 60000).toISOString())
+        .lte('created_at', new Date(new Date(record.created_at).getTime() + 60000).toISOString())
+    ]);
+
+    setRecordDetails({
+      vaccinations: vaccinationsRes.data || [],
+      sales: salesRes.data || []
+    });
+    
+    setViewRecordOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -604,6 +633,7 @@ export default function Atendimentos() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12"></TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Pet</TableHead>
                 <TableHead>Cliente</TableHead>
@@ -613,6 +643,16 @@ export default function Atendimentos() {
             <TableBody>
               {records.map((record) => (
                 <TableRow key={record.id}>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => viewRecordDetails(record)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     {format(new Date(record.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                   </TableCell>
@@ -625,6 +665,143 @@ export default function Atendimentos() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal de visualização do atendimento */}
+      <Dialog open={viewRecordOpen} onOpenChange={setViewRecordOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Atendimento</DialogTitle>
+          </DialogHeader>
+
+          {selectedRecord && (
+            <div className="space-y-6">
+              {/* Informações do Paciente */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Informações do Paciente</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Pet</Label>
+                    <p className="font-medium">{selectedRecord.pets?.nome}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Cliente/Tutor</Label>
+                    <p className="font-medium">{selectedRecord.pets?.clients?.nome}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Data do Atendimento</Label>
+                    <p className="font-medium">
+                      {format(new Date(selectedRecord.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Tipo de Atendimento</Label>
+                    <p className="font-medium">{selectedRecord.tipo_atendimento}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* SOAP */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Prontuário Médico (SOAP)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedRecord.soap?.subjetivo && (
+                    <div>
+                      <Label className="text-muted-foreground font-semibold">Subjetivo (Anamnese)</Label>
+                      <p className="mt-1 whitespace-pre-wrap">{selectedRecord.soap.subjetivo}</p>
+                    </div>
+                  )}
+                  {selectedRecord.soap?.objetivo && (
+                    <div>
+                      <Label className="text-muted-foreground font-semibold">Objetivo (Exame Físico)</Label>
+                      <p className="mt-1 whitespace-pre-wrap">{selectedRecord.soap.objetivo}</p>
+                    </div>
+                  )}
+                  {selectedRecord.soap?.avaliacao && (
+                    <div>
+                      <Label className="text-muted-foreground font-semibold">Avaliação (Diagnóstico)</Label>
+                      <p className="mt-1 whitespace-pre-wrap">{selectedRecord.soap.avaliacao}</p>
+                    </div>
+                  )}
+                  {selectedRecord.soap?.plano && (
+                    <div>
+                      <Label className="text-muted-foreground font-semibold">Plano (Tratamento)</Label>
+                      <p className="mt-1 whitespace-pre-wrap">{selectedRecord.soap.plano}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Vacinas */}
+              {recordDetails?.vaccinations && recordDetails.vaccinations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Syringe className="h-5 w-5" />
+                      Vacinas Aplicadas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {recordDetails.vaccinations.map((vacc: any) => (
+                        <div key={vacc.id} className="border-l-2 border-primary pl-3">
+                          <p className="font-medium">{vacc.vaccines?.nome} - {vacc.vaccines?.fabricante}</p>
+                          <div className="text-sm text-muted-foreground">
+                            Dose: {vacc.dose} • Lote: {vacc.lote || 'N/A'}
+                            {vacc.proxima_data && ` • Próxima dose: ${format(new Date(vacc.proxima_data), "dd/MM/yyyy", { locale: ptBR })}`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Produtos e Serviços */}
+              {recordDetails?.sales && recordDetails.sales.length > 0 && recordDetails.sales[0]?.sale_items?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5" />
+                      Produtos e Serviços
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {recordDetails.sales[0].sale_items.map((item: any) => (
+                        <div key={item.id} className="flex justify-between items-center py-2 border-b">
+                          <div>
+                            <p className="font-medium">
+                              {item.products?.nome || item.service_types?.nome || item.descricao}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.tipo === 'produto' ? 'Produto' : 'Serviço'} • Qtd: {item.quantidade} • R$ {Number(item.preco_unitario).toFixed(2)} cada
+                            </p>
+                          </div>
+                          <p className="font-bold">R$ {Number(item.total).toFixed(2)}</p>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-lg pt-2 border-t-2 font-semibold">
+                        <span>Total:</span>
+                        <span className="text-primary">
+                          R$ {Number(recordDetails.sales[0].total_liquido).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setViewRecordOpen(false)}>Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
