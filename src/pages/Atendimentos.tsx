@@ -528,14 +528,38 @@ export default function Atendimentos() {
                   <CardHeader>
                     <CardTitle>Resumo Financeiro</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-lg">
-                      <span>Total de Produtos/Serviços:</span>
-                      <span className="font-bold">R$ {totalVenda.toFixed(2)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {saleItems.length} item(ns) adicionado(s)
-                    </div>
+                  <CardContent className="space-y-4">
+                    {saleItems.length > 0 ? (
+                      <>
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-sm">Itens do Atendimento:</h4>
+                          {saleItems.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center py-2 border-b">
+                              <div className="flex-1">
+                                <div className="font-medium">{item.descricao}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {item.tipo === 'produto' ? 'Produto' : 'Serviço'} • Qtd: {item.quantidade} • R$ {item.preco_unitario.toFixed(2)} cada
+                                </div>
+                              </div>
+                              <div className="font-bold">R$ {item.total.toFixed(2)}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between text-lg pt-2 border-t-2">
+                          <span className="font-semibold">Total de Produtos/Serviços:</span>
+                          <span className="font-bold text-primary">R$ {totalVenda.toFixed(2)}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {saleItems.length} item(ns) adicionado(s)
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Nenhum produto ou serviço adicionado</p>
+                        <p className="text-sm">Vá para a aba "Produtos" para adicionar itens</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
