@@ -91,6 +91,11 @@ export default function Agenda() {
     if (servicesData) setServiceTypes(servicesData);
   };
 
+  const handleClientChange = (clientId: string) => {
+    setSelectedClient(clientId);
+    setSelectedPet(""); // Reset pet when client changes
+  };
+
   const loadAppointments = async () => {
     if (!date) return;
 
@@ -222,7 +227,7 @@ export default function Agenda() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Cliente *</Label>
-                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <Select value={selectedClient} onValueChange={handleClientChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o cliente" />
                   </SelectTrigger>
@@ -238,9 +243,19 @@ export default function Agenda() {
 
               <div className="space-y-2">
                 <Label>Pet *</Label>
-                <Select value={selectedPet} onValueChange={setSelectedPet} disabled={!selectedClient}>
+                <Select 
+                  value={selectedPet} 
+                  onValueChange={setSelectedPet} 
+                  disabled={!selectedClient || filteredPets.length === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o pet" />
+                    <SelectValue placeholder={
+                      !selectedClient 
+                        ? "Selecione primeiro o cliente" 
+                        : filteredPets.length === 0 
+                        ? "Este cliente não tem pets cadastrados" 
+                        : "Selecione o pet"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {filteredPets.map((pet) => (
