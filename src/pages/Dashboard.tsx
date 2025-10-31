@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -395,7 +396,17 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div>
               <Label>Status</Label>
-              <Input defaultValue={selectedAppointment?.status} />
+              <Select defaultValue={selectedAppointment?.status}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="aguardando">AGUARDANDO</SelectItem>
+                  <SelectItem value="liberado">LIBERADO</SelectItem>
+                  <SelectItem value="concluido">CONCLUÍDO</SelectItem>
+                  <SelectItem value="outros">OUTROS</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Horário</Label>
