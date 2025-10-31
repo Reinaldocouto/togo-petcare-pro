@@ -166,13 +166,22 @@ export default function Dashboard() {
 
   const handleSaveEdit = async () => {
     if (!selectedAppointment) return;
-    
+
+    // Map UI values -> DB enum values
+    const mapUiToDb: Record<string, 'agendado' | 'em_andamento' | 'concluido' | 'cancelado'> = {
+      aguardando: 'agendado',
+      liberado: 'em_andamento',
+      concluido: 'concluido',
+      outros: 'cancelado',
+    };
+    const statusToSave = mapUiToDb[editStatus] ?? 'agendado';
+
     try {
       const { error } = await supabase
         .from('appointments')
-        .update({ 
-          status: editStatus as 'agendado' | 'cancelado' | 'concluido' | 'em_andamento' | 'faltou',
-          notas: editNotes 
+        .update({
+          status: statusToSave,
+          notas: editNotes,
         })
         .eq('id', selectedAppointment.id);
 
@@ -314,7 +323,14 @@ export default function Dashboard() {
         onViewFinancial={(apt) => { setSelectedAppointment(apt); setFinancialOpen(true); }}
         onEdit={(apt) => { 
           setSelectedAppointment(apt); 
-          setEditStatus(apt.status || 'aguardando');
+          const map: Record<string, 'aguardando' | 'liberado' | 'concluido' | 'outros'> = {
+            agendado: 'aguardando',
+            em_andamento: 'liberado',
+            concluido: 'concluido',
+            cancelado: 'outros',
+            faltou: 'outros',
+          };
+          setEditStatus(map[apt.status] ?? 'aguardando');
           setEditNotes(apt.notas || '');
           setEditOpen(true); 
         }}
