@@ -7,6 +7,11 @@ import { Separator } from "@/components/ui/separator";
 import { FilaEspera } from "@/components/FilaEspera";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,6 +28,12 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [queueAppointments, setQueueAppointments] = useState<any[]>([]);
+
+  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
+  const [viewRecordOpen, setViewRecordOpen] = useState(false);
+  const [triageOpen, setTriageOpen] = useState(false);
+  const [financialOpen, setFinancialOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     seedAndLoadStats();
@@ -274,11 +285,133 @@ export default function Dashboard() {
 
       <FilaEspera 
         appointments={queueAppointments}
-        onViewRecord={() => {}}
-        onViewTriage={() => {}}
-        onViewFinancial={() => {}}
-        onEdit={() => {}}
+        onViewRecord={(apt) => { setSelectedAppointment(apt); setViewRecordOpen(true); }}
+        onViewTriage={(apt) => { setSelectedAppointment(apt); setTriageOpen(true); }}
+        onViewFinancial={(apt) => { setSelectedAppointment(apt); setFinancialOpen(true); }}
+        onEdit={(apt) => { setSelectedAppointment(apt); setEditOpen(true); }}
       />
+
+      {/* Modais de ação da Fila */}
+      <Dialog open={viewRecordOpen} onOpenChange={setViewRecordOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Prontuário do Paciente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground">Cliente</Label>
+                <p className="font-medium">{selectedAppointment?.clients?.nome}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Pet</Label>
+                <p className="font-medium">{selectedAppointment?.pets?.nome}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Procedimento</Label>
+                <p className="font-medium">{selectedAppointment?.service_types?.nome}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Hora</Label>
+                <p className="font-medium">{selectedAppointment?.hora}</p>
+              </div>
+            </div>
+            <div>
+              <Label>Notas</Label>
+              <Textarea placeholder="Observações do atendimento..." rows={3} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setViewRecordOpen(false)}>Fechar</Button>
+              <Button onClick={() => setViewRecordOpen(false)}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={triageOpen} onOpenChange={setTriageOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dados de Triagem</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Temperatura (°C)</Label>
+              <Input type="number" step="0.1" placeholder="38.5" />
+            </div>
+            <div>
+              <Label>Frequência Cardíaca (bpm)</Label>
+              <Input type="number" placeholder="120" />
+            </div>
+            <div>
+              <Label>Frequência Respiratória (rpm)</Label>
+              <Input type="number" placeholder="30" />
+            </div>
+            <div>
+              <Label>Peso (kg)</Label>
+              <Input type="number" step="0.1" placeholder="5.5" />
+            </div>
+            <div className="col-span-2">
+              <Label>Observações</Label>
+              <Textarea rows={3} placeholder="Mucosas róseas, TPC < 2s..." />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setTriageOpen(false)}>Cancelar</Button>
+            <Button onClick={() => setTriageOpen(false)}>Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={financialOpen} onOpenChange={setFinancialOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Resumo Financeiro</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Cliente:</span>
+              <span className="font-medium">{selectedAppointment?.clients?.nome}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Pet:</span>
+              <span className="font-medium">{selectedAppointment?.pets?.nome}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Procedimento:</span>
+              <span className="font-medium">{selectedAppointment?.service_types?.nome}</span>
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button onClick={() => setFinancialOpen(false)}>Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Atendimento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Status</Label>
+              <Input defaultValue={selectedAppointment?.status} />
+            </div>
+            <div>
+              <Label>Horário</Label>
+              <Input defaultValue={selectedAppointment?.hora} />
+            </div>
+            <div>
+              <Label>Notas</Label>
+              <Textarea rows={3} placeholder="Observações..." />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+              <Button onClick={() => setEditOpen(false)}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
