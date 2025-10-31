@@ -272,7 +272,13 @@ export default function Dashboard() {
 
       <Separator className="my-8" />
 
-      <FilaEspera appointments={queueAppointments} />
+      <FilaEspera 
+        appointments={queueAppointments}
+        onViewRecord={() => {}}
+        onViewTriage={() => {}}
+        onViewFinancial={() => {}}
+        onEdit={() => {}}
+      />
     </div>
   );
 }
