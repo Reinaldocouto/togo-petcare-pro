@@ -35,6 +35,8 @@ export default function Dashboard() {
   const [triageOpen, setTriageOpen] = useState(false);
   const [financialOpen, setFinancialOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   useEffect(() => {
     seedAndLoadStats();
@@ -159,6 +161,27 @@ export default function Dashboard() {
       console.error('Erro ao carregar estatísticas:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedAppointment) return;
+    
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ 
+          status: editStatus as 'agendado' | 'cancelado' | 'concluido' | 'em_andamento' | 'faltou',
+          notas: editNotes 
+        })
+        .eq('id', selectedAppointment.id);
+
+      if (error) throw error;
+
+      setEditOpen(false);
+      await loadStats(); // Recarrega os dados
+    } catch (error) {
+      console.error('Erro ao salvar alterações:', error);
     }
   };
 
@@ -289,7 +312,12 @@ export default function Dashboard() {
         onViewRecord={(apt) => { setSelectedAppointment(apt); setViewRecordOpen(true); }}
         onViewTriage={(apt) => { setSelectedAppointment(apt); setTriageOpen(true); }}
         onViewFinancial={(apt) => { setSelectedAppointment(apt); setFinancialOpen(true); }}
-        onEdit={(apt) => { setSelectedAppointment(apt); setEditOpen(true); }}
+        onEdit={(apt) => { 
+          setSelectedAppointment(apt); 
+          setEditStatus(apt.status || 'aguardando');
+          setEditNotes(apt.notas || '');
+          setEditOpen(true); 
+        }}
       />
 
       {/* Modais de ação da Fila */}
@@ -396,7 +424,7 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div>
               <Label>Status</Label>
-              <Select defaultValue={selectedAppointment?.status}>
+              <Select value={editStatus} onValueChange={setEditStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
@@ -409,16 +437,17 @@ export default function Dashboard() {
               </Select>
             </div>
             <div>
-              <Label>Horário</Label>
-              <Input defaultValue={selectedAppointment?.hora} />
-            </div>
-            <div>
               <Label>Notas</Label>
-              <Textarea rows={3} placeholder="Observações..." />
+              <Textarea 
+                rows={3} 
+                placeholder="Observações..." 
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-              <Button onClick={() => setEditOpen(false)}>Salvar</Button>
+              <Button onClick={handleSaveEdit}>Salvar</Button>
             </div>
           </div>
         </DialogContent>
