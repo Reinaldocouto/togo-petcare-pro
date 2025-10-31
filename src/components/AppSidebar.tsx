@@ -23,6 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import huskyIcon from "@/assets/husky-icon.png";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -46,8 +47,25 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
+          <div className={`px-4 py-6 ${isCollapsed ? 'flex justify-center' : ''}`}>
+            {isCollapsed ? (
+              <img src={huskyIcon} alt="Togo" className="w-8 h-8" />
+            ) : (
+              <div className="flex items-center gap-3">
+                <img src={huskyIcon} alt="Togo" className="w-10 h-10" />
+                <h1 className="text-3xl font-black tracking-tight" style={{ 
+                  background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
+                  TOGO
+                </h1>
+              </div>
+            )}
+          </div>
           <SidebarGroupLabel className={isCollapsed ? "text-center" : ""}>
-            {isCollapsed ? "T" : "TOGO"}
+            PetCare Pro
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
