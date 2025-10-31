@@ -64,9 +64,6 @@ export function AppSidebar() {
               </div>
             )}
           </div>
-          <SidebarGroupLabel className={isCollapsed ? "text-center" : ""}>
-            PetCare Pro
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
