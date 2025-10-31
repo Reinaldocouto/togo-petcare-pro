@@ -3,6 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Users, DollarSign, AlertTriangle, TrendingUp, Activity, Package, Syringe } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { FilaEspera } from "@/components/FilaEspera";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -18,6 +22,7 @@ export default function Dashboard() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [queueAppointments, setQueueAppointments] = useState<any[]>([]);
 
   useEffect(() => {
     seedAndLoadStats();
@@ -40,13 +45,17 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase.from('profiles').select('nome').eq('id', user?.id || '').single();
+      const veterinario = profile?.nome || 'Dr. Veterinário';
+
       const hoje = new Date().toISOString().split('T')[0];
       const inicioSemana = new Date();
       inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
       const fimSemana = new Date(inicioSemana);
       fimSemana.setDate(fimSemana.getDate() + 6);
       
-      const [appointments, appointmentsWeek, clients, pets, sales, salesToday, products, vaccines] = await Promise.all([
+      const [appointments, appointmentsWeek, clients, pets, sales, salesToday, products, vaccines, queueRes] = await Promise.all([
         supabase
           .from('appointments')
           .select('id', { count: 'exact' })
@@ -97,6 +106,13 @@ export default function Dashboard() {
           .select('id', { count: 'exact' })
           .gte('proxima_data', hoje)
           .lte('proxima_data', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+        
+        supabase
+          .from('appointments')
+          .select('*, pets(nome, especie), clients(nome), service_types(nome, categoria)')
+          .gte('inicio', new Date().toISOString().split('T')[0])
+          .order('inicio')
+          .limit(50)
       ]);
 
       const faturamento = sales.data?.reduce((sum, sale) => sum + Number(sale.total_liquido), 0) || 0;
@@ -104,6 +120,17 @@ export default function Dashboard() {
 
       // Taxa de ocupação (assumindo 10 horários por dia)
       const taxaOcupacao = appointmentsWeek.count ? Math.min((appointmentsWeek.count / (10 * 7)) * 100, 100) : 0;
+
+      // Mapear dados da fila com informações adicionais
+      const mappedQueue = (queueRes.data || []).map(apt => ({
+        ...apt,
+        veterinario: veterinario,
+        hora: format(new Date(apt.inicio), "HH:mm", { locale: ptBR }),
+        status_display: apt.status === 'agendado' ? 'Aguardando atendimento' : 
+                       apt.status === 'concluido' ? 'Concluído' : 
+                       apt.status === 'em_andamento' ? 'Entrada solicitada' : 'Solicitar entrada'
+      }));
+      setQueueAppointments(mappedQueue);
 
       setStats({
         agendamentosHoje: appointments.count || 0,
@@ -242,6 +269,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Separator className="my-8" />
+
+      <FilaEspera appointments={queueAppointments} />
     </div>
   );
 }
