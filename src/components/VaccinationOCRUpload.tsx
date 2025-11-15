@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Loader2, Camera, CheckCircle2, XCircle, Edit } from "lucide-react";
+import { Upload, Loader2, Camera, CheckCircle2, XCircle, Edit, Trash2 } from "lucide-react";
 import Tesseract from "tesseract.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -274,6 +274,15 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
     setExtractedRecords(prev => prev.filter((_, i) => i !== index));
   };
 
+  const clearImage = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setExtractedRecords([]);
+  };
+
   return (
     <>
       <Card>
@@ -303,7 +312,19 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
 
           {previewUrl && (
             <div className="space-y-2">
-              <Label>Pré-visualização</Label>
+              <div className="flex items-center justify-between">
+                <Label>Pré-visualização</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearImage}
+                  disabled={isProcessing}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remover Imagem
+                </Button>
+              </div>
               <img
                 src={previewUrl}
                 alt="Preview"
