@@ -6,10 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VaccinationOCRUpload } from "./VaccinationOCRUpload";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProntuarioEletronicoProps {
   client: any;
@@ -18,12 +23,25 @@ interface ProntuarioEletronicoProps {
 }
 
 export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletronicoProps) {
+  const { toast } = useToast();
   const [pets, setPets] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [vaccinations, setVaccinations] = useState<any[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddPetDialog, setShowAddPetDialog] = useState(false);
+  const [petForm, setPetForm] = useState({
+    nome: "",
+    especie: "",
+    raca: "",
+    sexo: "",
+    nascimento: "",
+    cor: "",
+    castrado: false,
+    microchip: "",
+    alergias: "",
+  });
 
   useEffect(() => {
     if (open && client) {
@@ -122,6 +140,70 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
     return <Badge variant={config.variant as any}>{config.label}</Badge>;
   };
 
+  const handleAddPet = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('clinic_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userRole?.clinic_id) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível identificar a clínica.",
+        });
+        return;
+      }
+
+      const { error } = await supabase.from('pets').insert({
+        client_id: client.id,
+        clinic_id: userRole.clinic_id,
+        nome: petForm.nome,
+        especie: petForm.especie,
+        raca: petForm.raca || null,
+        sexo: petForm.sexo || null,
+        nascimento: petForm.nascimento || null,
+        cor: petForm.cor || null,
+        castrado: petForm.castrado,
+        microchip: petForm.microchip || null,
+        alergias: petForm.alergias || null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Pet cadastrado",
+        description: `${petForm.nome} foi adicionado com sucesso!`,
+      });
+
+      setPetForm({
+        nome: "",
+        especie: "",
+        raca: "",
+        sexo: "",
+        nascimento: "",
+        cor: "",
+        castrado: false,
+        microchip: "",
+        alergias: "",
+      });
+      setShowAddPetDialog(false);
+      loadProntuarioData();
+    } catch (error) {
+      console.error('Erro ao adicionar pet:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível cadastrar o pet.",
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl h-[90vh] p-0">
@@ -164,8 +246,12 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
             {/* Aba Dados do Cliente */}
             <TabsContent value="dados" className="space-y-4">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Informações Pessoais</CardTitle>
+                  <Button onClick={() => setShowAddPetDialog(true)} size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Pet
+                  </Button>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
                   <div>
@@ -511,6 +597,117 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
             </TabsContent>
           </ScrollArea>
         </Tabs>
+
+        {/* Dialog de Adicionar Pet */}
+        <Dialog open={showAddPetDialog} onOpenChange={setShowAddPetDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Adicionar Novo Pet para {client.nome}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome do Pet *</Label>
+                <Input
+                  id="nome"
+                  value={petForm.nome}
+                  onChange={(e) => setPetForm({ ...petForm, nome: e.target.value })}
+                  placeholder="Ex: Max"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="especie">Espécie *</Label>
+                <Select value={petForm.especie} onValueChange={(value) => setPetForm({ ...petForm, especie: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cão">Cão</SelectItem>
+                    <SelectItem value="Gato">Gato</SelectItem>
+                    <SelectItem value="Ave">Ave</SelectItem>
+                    <SelectItem value="Réptil">Réptil</SelectItem>
+                    <SelectItem value="Roedor">Roedor</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="raca">Raça</Label>
+                <Input
+                  id="raca"
+                  value={petForm.raca}
+                  onChange={(e) => setPetForm({ ...petForm, raca: e.target.value })}
+                  placeholder="Ex: SRD, Labrador"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sexo">Sexo</Label>
+                <Select value={petForm.sexo} onValueChange={(value) => setPetForm({ ...petForm, sexo: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Macho">Macho</SelectItem>
+                    <SelectItem value="Fêmea">Fêmea</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nascimento">Data de Nascimento</Label>
+                <Input
+                  id="nascimento"
+                  type="date"
+                  value={petForm.nascimento}
+                  onChange={(e) => setPetForm({ ...petForm, nascimento: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cor">Cor</Label>
+                <Input
+                  id="cor"
+                  value={petForm.cor}
+                  onChange={(e) => setPetForm({ ...petForm, cor: e.target.value })}
+                  placeholder="Ex: Preto, Caramelo"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="microchip">Microchip</Label>
+                <Input
+                  id="microchip"
+                  value={petForm.microchip}
+                  onChange={(e) => setPetForm({ ...petForm, microchip: e.target.value })}
+                  placeholder="Número do microchip"
+                />
+              </div>
+              <div className="space-y-2 flex items-center gap-2 pt-8">
+                <input
+                  type="checkbox"
+                  id="castrado"
+                  checked={petForm.castrado}
+                  onChange={(e) => setPetForm({ ...petForm, castrado: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="castrado">Pet castrado</Label>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="alergias">Alergias / Observações</Label>
+                <Input
+                  id="alergias"
+                  value={petForm.alergias}
+                  onChange={(e) => setPetForm({ ...petForm, alergias: e.target.value })}
+                  placeholder="Alergias, medicamentos, observações importantes"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddPetDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAddPet} disabled={!petForm.nome || !petForm.especie}>
+                Cadastrar Pet
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
