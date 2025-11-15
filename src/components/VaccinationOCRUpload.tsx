@@ -21,17 +21,18 @@ interface VaccinationRecord {
 }
 
 interface VaccinationOCRUploadProps {
-  petId: string;
+  pets: any[];
   onSuccess: () => void;
 }
 
-export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadProps) {
+export function VaccinationOCRUpload({ pets, onSuccess }: VaccinationOCRUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [extractedRecords, setExtractedRecords] = useState<VaccinationRecord[]>([]);
   const [showReview, setShowReview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedPetId, setSelectedPetId] = useState<string>("");
 
   const parseVaccinationData = (text: string): VaccinationRecord[] => {
     const records: VaccinationRecord[] = [];
@@ -146,23 +147,22 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
   };
 
   const processImage = async () => {
-    if (!selectedFile) return;
-
-    if (!petId) {
+    if (!selectedFile || !selectedPetId) {
       toast({
+        title: "Erro",
+        description: "Selecione um pet antes de processar a imagem",
         variant: "destructive",
-        title: "Pet não selecionado",
-        description: "É necessário ter um pet cadastrado para processar a carteira de vacinação.",
       });
       return;
     }
+
 
     setIsProcessing(true);
     setProgress(0);
 
     try {
       // 1. Upload da imagem para o Supabase Storage
-      const filePath = `${petId}/${Date.now()}-${selectedFile.name}`;
+      const filePath = `${selectedPetId}/${Date.now()}-${selectedFile.name}`;
       const { error: uploadError } = await supabase.storage
         .from('vaccination_scans')
         .upload(filePath, selectedFile, { upsert: false });
@@ -268,7 +268,7 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
           .from('vaccination_records')
           .insert({
             clinic_id: clinicData?.clinic_id,
-            pet_id: petId,
+            pet_id: selectedPetId,
             vaccine_id: vaccineId,
             aplicador_id: userData.user?.id,
             data_aplicacao: record.data_aplicacao,

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign, PlusCircle } from "lucide-react";
+import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign, PlusCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VaccinationOCRUpload } from "./VaccinationOCRUpload";
@@ -200,6 +200,31 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível cadastrar o pet.",
+      });
+    }
+  };
+
+  const handleDeleteVaccination = async (vaccinationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('vaccination_records')
+        .delete()
+        .eq('id', vaccinationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Registro excluído",
+        description: "O registro de vacinação foi removido com sucesso.",
+      });
+
+      loadProntuarioData();
+    } catch (error) {
+      console.error('Erro ao excluir registro de vacinação:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível excluir o registro de vacinação.",
       });
     }
   };
@@ -459,7 +484,7 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
             <TabsContent value="vacinas" className="space-y-4">
               {pets.length > 0 ? (
                 <VaccinationOCRUpload
-                  petId={pets[0].id}
+                  pets={pets}
                   onSuccess={loadProntuarioData}
                 />
               ) : (
@@ -482,7 +507,17 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
                     <CardHeader>
                       <CardTitle className="flex items-center justify-between text-lg">
                         <span>{vaccination.vaccine?.nome}</span>
-                        <Badge>Dose {vaccination.dose}</Badge>
+                        <div className="flex gap-2 items-center">
+                          <Badge>Dose {vaccination.dose}</Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteVaccination(vaccination.id)}
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-4">
