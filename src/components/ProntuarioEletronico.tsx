@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign, PlusCircle, Trash2 } from "lucide-react";
+import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign, PlusCircle, Trash2, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VaccinationOCRUpload } from "./VaccinationOCRUpload";
+import { AtendimentoModal } from "./AtendimentoModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProntuarioEletronicoProps {
@@ -31,6 +32,7 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddPetDialog, setShowAddPetDialog] = useState(false);
+  const [atendimentoModalOpen, setAtendimentoModalOpen] = useState(false);
   const [petForm, setPetForm] = useState({
     nome: "",
     especie: "",
@@ -230,6 +232,7 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl h-[90vh] p-0">
         <DialogHeader className="px-6 pt-6">
@@ -376,6 +379,13 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
 
             {/* Aba Atendimentos */}
             <TabsContent value="atendimentos" className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <Button onClick={() => setAtendimentoModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Atendimento
+                </Button>
+              </div>
+              
               {appointments.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
@@ -745,5 +755,13 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
         </Dialog>
       </DialogContent>
     </Dialog>
+
+    <AtendimentoModal
+      open={atendimentoModalOpen}
+      onOpenChange={setAtendimentoModalOpen}
+      prefilledClientId={client.id}
+      onSave={loadProntuarioData}
+    />
+  </>
   );
 }
