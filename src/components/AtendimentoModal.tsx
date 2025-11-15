@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Syringe, ShoppingCart, Calendar, Mic, Square, Play, Pause, Loader2 } from "lucide-react";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Client {
@@ -84,9 +84,8 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
   const [lote, setLote] = useState("");
   const [proximaData, setProximaData] = useState("");
   
-  // AI Assistant states
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const audioRecorder = useAudioRecorder();
+  // Speech recognition
+  const { startListening, isListening } = useSpeechRecognition();
 
   useEffect(() => {
     if (open) {
@@ -283,75 +282,24 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
 
   const totalVenda = saleItems.reduce((sum, item) => sum + item.total, 0);
 
-  const handleStartRecording = async () => {
-    try {
-      await audioRecorder.startRecording();
-      toast.success("Gravação iniciada");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao iniciar gravação");
-    }
-  };
+  const handleStartVoiceInput = (field: 'anamnese' | 'exame' | 'diagnostico' | 'tratamento') => {
+    const fieldSetters = {
+      anamnese: setAnamnese,
+      exame: setExame,
+      diagnostico: setDiagnostico,
+      tratamento: setTratamento
+    };
 
-  const handleStopAndTranscribe = async () => {
-    try {
-      setIsTranscribing(true);
-      const audioBase64 = await audioRecorder.stopRecording();
-      
-      if (!audioBase64) {
-        toast.error("Nenhum áudio gravado");
-        setIsTranscribing(false);
-        return;
+    startListening(
+      (transcript) => {
+        const setter = fieldSetters[field];
+        setter(prev => prev ? `${prev}\n${transcript}` : transcript);
+        toast.success("Texto capturado com sucesso");
+      },
+      (error) => {
+        toast.error(`Erro no reconhecimento: ${error}`);
       }
-
-      toast.info("Processando transcrição...");
-
-      const selectedPetData = pets.find(p => p.id === selectedPet);
-      
-      const { data, error } = await supabase.functions.invoke('medical-transcription', {
-        body: { 
-          audio: audioBase64,
-          petName: selectedPetData?.nome,
-          species: selectedPetData?.especie
-        }
-      });
-
-      if (error) {
-        console.error('Transcription error:', error);
-        throw new Error(error.message || 'Erro desconhecido na transcrição');
-      }
-
-      if (data?.error) {
-        console.error('Transcription error from function:', data.error);
-        throw new Error(data.error);
-      }
-
-      if (data.soap) {
-        setAnamnese(data.soap.subjetivo || anamnese);
-        setExame(data.soap.objetivo || exame);
-        setDiagnostico(data.soap.avaliacao || diagnostico);
-        setTratamento(data.soap.plano || tratamento);
-        toast.success("Transcrição concluída! Revise os campos antes de salvar.");
-      }
-    } catch (error: any) {
-      console.error('Transcription error:', error);
-      
-      // Provide user-friendly error messages
-      let errorMessage = "Erro ao processar transcrição";
-      
-      if (error.message) {
-        if (error.message.includes('insufficient_quota') || error.message.includes('cota de uso')) {
-          errorMessage = "Cota da API OpenAI excedida. Adicione créditos em sua conta OpenAI.";
-        } else if (error.message.includes('invalid_api_key')) {
-          errorMessage = "Chave de API OpenAI inválida. Verifique sua configuração.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast.error(errorMessage);
-    } finally {
-      setIsTranscribing(false);
-    }
+    );
   };
 
   const formatRecordingTime = (seconds: number): string => {
@@ -426,138 +374,103 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
             </TabsContent>
 
             <TabsContent value="anamnese" className="space-y-4">
-              {/* AI Assistant Recording Section */}
-              <Alert className="border-primary/20 bg-primary/5">
+              <Alert>
                 <AlertDescription>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Mic className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Assistente IA - Residente</span>
-                      </div>
-                      {audioRecorder.isRecording && (
-                        <span className="text-sm font-mono text-muted-foreground">
-                          {formatRecordingTime(audioRecorder.recordingTime)}
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-muted-foreground">
-                      Grave sua fala durante o atendimento e o sistema irá transcrever e formatar automaticamente no padrão SOAP.
-                    </p>
-
-                    <div className="flex gap-2">
-                      {!audioRecorder.isRecording && !isTranscribing && (
-                        <Button 
-                          onClick={handleStartRecording}
-                          disabled={!selectedPet}
-                          size="sm"
-                          variant="default"
-                        >
-                          <Mic className="h-4 w-4 mr-2" />
-                          Iniciar Gravação
-                        </Button>
-                      )}
-
-                      {audioRecorder.isRecording && !audioRecorder.isPaused && (
-                        <>
-                          <Button 
-                            onClick={audioRecorder.pauseRecording}
-                            size="sm"
-                            variant="secondary"
-                          >
-                            <Pause className="h-4 w-4 mr-2" />
-                            Pausar
-                          </Button>
-                          <Button 
-                            onClick={handleStopAndTranscribe}
-                            size="sm"
-                            variant="default"
-                          >
-                            <Square className="h-4 w-4 mr-2" />
-                            Finalizar e Transcrever
-                          </Button>
-                        </>
-                      )}
-
-                      {audioRecorder.isRecording && audioRecorder.isPaused && (
-                        <>
-                          <Button 
-                            onClick={audioRecorder.resumeRecording}
-                            size="sm"
-                            variant="secondary"
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Retomar
-                          </Button>
-                          <Button 
-                            onClick={handleStopAndTranscribe}
-                            size="sm"
-                            variant="default"
-                          >
-                            <Square className="h-4 w-4 mr-2" />
-                            Finalizar e Transcrever
-                          </Button>
-                        </>
-                      )}
-
-                      {isTranscribing && (
-                        <Button size="sm" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Processando...
-                        </Button>
-                      )}
-                    </div>
-
-                    {!selectedPet && (
-                      <p className="text-xs text-yellow-600">
-                        Selecione um pet na aba "Paciente" para habilitar a gravação.
-                      </p>
-                    )}
-                  </div>
+                  <p className="font-medium mb-2">💡 Dica: Use reconhecimento de voz</p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Clique no botão "🎤 Ditar" em cada campo para usar ditado por voz em português (pt-BR).
+                  </p>
                 </AlertDescription>
               </Alert>
 
               <div className="space-y-2">
-                <Label htmlFor="anamnese">Anamnese (Subjetivo)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="anamnese">Anamnese (Subjetivo)</Label>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleStartVoiceInput('anamnese')}
+                    disabled={isListening}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
+                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                  </Button>
+                </div>
                 <Textarea
                   id="anamnese"
                   value={anamnese}
                   onChange={(e) => setAnamnese(e.target.value)}
-                  placeholder="Queixa principal, histórico..."
+                  placeholder="Queixa principal, histórico... (ou clique em '🎤 Ditar' para usar voz)"
                   rows={4}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="exame">Exame Clínico (Objetivo)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="exame">Exame Clínico (Objetivo)</Label>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleStartVoiceInput('exame')}
+                    disabled={isListening}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
+                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                  </Button>
+                </div>
                 <Textarea
                   id="exame"
                   value={exame}
                   onChange={(e) => setExame(e.target.value)}
-                  placeholder="Temperatura, FC, FR, mucosas..."
+                  placeholder="Temperatura, FC, FR, mucosas... (ou clique em '🎤 Ditar' para usar voz)"
                   rows={4}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="diagnostico">Diagnóstico (Avaliação)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="diagnostico">Diagnóstico (Avaliação)</Label>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleStartVoiceInput('diagnostico')}
+                    disabled={isListening}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
+                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                  </Button>
+                </div>
                 <Textarea
                   id="diagnostico"
                   value={diagnostico}
                   onChange={(e) => setDiagnostico(e.target.value)}
-                  placeholder="Diagnóstico presuntivo ou definitivo..."
+                  placeholder="Diagnóstico presuntivo ou definitivo... (ou clique em '🎤 Ditar' para usar voz)"
                   rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tratamento">Tratamento (Plano)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tratamento">Tratamento (Plano)</Label>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleStartVoiceInput('tratamento')}
+                    disabled={isListening}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
+                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                  </Button>
+                </div>
                 <Textarea
                   id="tratamento"
                   value={tratamento}
                   onChange={(e) => setTratamento(e.target.value)}
-                  placeholder="Medicações, procedimentos, orientações..."
+                  placeholder="Medicações, procedimentos, orientações... (ou clique em '🎤 Ditar' para usar voz)"
                   rows={4}
                 />
               </div>
