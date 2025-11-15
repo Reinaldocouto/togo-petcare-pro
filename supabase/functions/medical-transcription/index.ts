@@ -199,10 +199,18 @@ PLANO (Tratamento):
 
   } catch (error) {
     console.error('Error in medical-transcription:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error occurred';
+    let status = 500;
+    const lower = msg.toLowerCase();
+    if (lower.includes('insufficient_quota') || lower.includes('cota') || lower.includes('quota')) {
+      status = 402; // Payment required / quota exceeded
+    } else if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('429')) {
+      status = 429; // Rate limited
+    }
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }),
+      JSON.stringify({ error: msg }),
       {
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
