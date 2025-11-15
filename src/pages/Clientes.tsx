@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Pencil } from "lucide-react";
 import { z } from "zod";
 
 const clientSchema = z.object({
@@ -22,6 +22,7 @@ export default function Clientes() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -64,25 +65,47 @@ export default function Clientes() {
         .eq('user_id', userData.user?.id)
         .single();
 
-      const { error } = await supabase
-        .from('clients')
-        .insert([{
-          nome: validData.nome,
-          email: validData.email || null,
-          telefone: validData.telefone,
-          cpf_cnpj: validData.cpf_cnpj,
-          clinic_id: userRole?.clinic_id,
-        }]);
+      if (editingClient) {
+        // Atualizar cliente existente
+        const { error } = await supabase
+          .from('clients')
+          .update({
+            nome: validData.nome,
+            email: validData.email || null,
+            telefone: validData.telefone,
+            cpf_cnpj: validData.cpf_cnpj,
+          })
+          .eq('id', editingClient.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Cliente cadastrado!",
-        description: "Cliente adicionado com sucesso",
-      });
+        toast({
+          title: "Cliente atualizado!",
+          description: "Dados atualizados com sucesso",
+        });
+      } else {
+        // Criar novo cliente
+        const { error } = await supabase
+          .from('clients')
+          .insert([{
+            nome: validData.nome,
+            email: validData.email || null,
+            telefone: validData.telefone,
+            cpf_cnpj: validData.cpf_cnpj,
+            clinic_id: userRole?.clinic_id,
+          }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Cliente cadastrado!",
+          description: "Cliente adicionado com sucesso",
+        });
+      }
 
       setOpen(false);
       setFormData({ nome: "", email: "", telefone: "", cpf_cnpj: "" });
+      setEditingClient(null);
       loadClients();
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -103,6 +126,23 @@ export default function Clientes() {
     }
   };
 
+  const handleEdit = (client: any) => {
+    setEditingClient(client);
+    setFormData({
+      nome: client.nome,
+      email: client.email || "",
+      telefone: client.telefone || "",
+      cpf_cnpj: client.cpf_cnpj || "",
+    });
+    setOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpen(false);
+    setEditingClient(null);
+    setFormData({ nome: "", email: "", telefone: "", cpf_cnpj: "" });
+  };
+
   const filteredClients = clients.filter(c =>
     c.nome.toLowerCase().includes(search.toLowerCase()) ||
     c.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -116,7 +156,7 @@ export default function Clientes() {
           <h1 className="text-3xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">Gerencie seus clientes</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleCloseDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -125,7 +165,7 @@ export default function Clientes() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Cadastrar Cliente</DialogTitle>
+              <DialogTitle>{editingClient ? "Editar Cliente" : "Cadastrar Cliente"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -164,7 +204,7 @@ export default function Clientes() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Salvando..." : "Salvar"}
+                {loading ? "Salvando..." : editingClient ? "Atualizar" : "Salvar"}
               </Button>
             </form>
           </DialogContent>
@@ -191,6 +231,7 @@ export default function Clientes() {
                 <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>CPF/CNPJ</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -200,6 +241,16 @@ export default function Clientes() {
                   <TableCell>{client.telefone}</TableCell>
                   <TableCell>{client.email || "-"}</TableCell>
                   <TableCell>{client.cpf_cnpj || "-"}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(client)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
