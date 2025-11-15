@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { convertToMedicalTerms } from '@/lib/medicalTerms';
 
 interface SpeechRecognitionResult {
   transcript: string;
@@ -47,7 +48,9 @@ export function useSpeechRecognition() {
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[0][0].transcript;
-      onResult(transcript);
+      // Converte linguagem coloquial para termos médicos técnicos
+      const medicalText = convertToMedicalTerms(transcript);
+      onResult(medicalText);
       setIsListening(false);
     };
 
