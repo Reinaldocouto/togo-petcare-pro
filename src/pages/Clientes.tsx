@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Search, Pencil, FileText } from "lucide-react";
 import { z } from "zod";
+import { ProntuarioEletronico } from "@/components/ProntuarioEletronico";
 
 const clientSchema = z.object({
   nome: z.string().min(2, "Nome deve ter no mínimo 2 caracteres").max(100),
@@ -23,6 +24,7 @@ export default function Clientes() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
+  const [selectedClientForProntuario, setSelectedClientForProntuario] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -242,14 +244,26 @@ export default function Clientes() {
                   <TableCell>{client.email || "-"}</TableCell>
                   <TableCell>{client.cpf_cnpj || "-"}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(client)}
-                      className="h-8 w-8"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(client)}
+                        className="h-8 w-8"
+                        title="Editar cliente"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSelectedClientForProntuario(client)}
+                        className="h-8 w-8"
+                        title="Prontuário Eletrônico"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -257,6 +271,14 @@ export default function Clientes() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedClientForProntuario && (
+        <ProntuarioEletronico
+          client={selectedClientForProntuario}
+          open={!!selectedClientForProntuario}
+          onClose={() => setSelectedClientForProntuario(null)}
+        />
+      )}
     </div>
   );
 }
