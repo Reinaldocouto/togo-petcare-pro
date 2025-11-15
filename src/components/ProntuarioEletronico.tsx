@@ -371,10 +371,18 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
 
             {/* Aba Vacinas */}
             <TabsContent value="vacinas" className="space-y-4">
-              <VaccinationOCRUpload
-                petId={pets[0]?.id || ''}
-                onSuccess={loadProntuarioData}
-              />
+              {pets.length > 0 ? (
+                <VaccinationOCRUpload
+                  petId={pets[0].id}
+                  onSuccess={loadProntuarioData}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <p>É necessário cadastrar pelo menos um pet para usar o OCR de vacinas</p>
+                  </CardContent>
+                </Card>
+              )}
 
               {vaccinations.length === 0 ? (
                 <Card>
