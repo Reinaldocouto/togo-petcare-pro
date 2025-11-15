@@ -101,6 +101,15 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
   const processImage = async () => {
     if (!selectedFile) return;
 
+    if (!petId) {
+      toast({
+        variant: "destructive",
+        title: "Pet não selecionado",
+        description: "É necessário ter um pet cadastrado para processar a carteira de vacinação.",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProgress(0);
 
