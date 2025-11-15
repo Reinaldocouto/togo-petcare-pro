@@ -315,7 +315,15 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Transcription error:', error);
+        throw new Error(error.message || 'Erro desconhecido na transcrição');
+      }
+
+      if (data?.error) {
+        console.error('Transcription error from function:', data.error);
+        throw new Error(data.error);
+      }
 
       if (data.soap) {
         setAnamnese(data.soap.subjetivo || anamnese);
@@ -326,7 +334,21 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
       }
     } catch (error: any) {
       console.error('Transcription error:', error);
-      toast.error("Erro ao processar transcrição: " + error.message);
+      
+      // Provide user-friendly error messages
+      let errorMessage = "Erro ao processar transcrição";
+      
+      if (error.message) {
+        if (error.message.includes('insufficient_quota') || error.message.includes('cota de uso')) {
+          errorMessage = "Cota da API OpenAI excedida. Adicione créditos em sua conta OpenAI.";
+        } else if (error.message.includes('invalid_api_key')) {
+          errorMessage = "Chave de API OpenAI inválida. Verifique sua configuração.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsTranscribing(false);
     }

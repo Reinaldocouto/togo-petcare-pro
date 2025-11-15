@@ -75,7 +75,17 @@ serve(async (req) => {
     if (!transcriptionResponse.ok) {
       const errorText = await transcriptionResponse.text();
       console.error('OpenAI Whisper error:', errorText);
-      throw new Error(`Transcription failed: ${errorText}`);
+      
+      // Parse error to provide user-friendly message
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.code === 'insufficient_quota') {
+          throw new Error('Sua conta OpenAI excedeu a cota de uso. Por favor, adicione créditos em https://platform.openai.com/account/billing');
+        }
+        throw new Error(errorJson.error?.message || `Erro na transcrição: ${errorText}`);
+      } catch (parseError) {
+        throw new Error(`Erro ao processar transcrição: ${errorText}`);
+      }
     }
 
     const transcriptionResult = await transcriptionResponse.json();
@@ -137,7 +147,14 @@ PLANO (Tratamento):
     if (!soapResponse.ok) {
       const errorText = await soapResponse.text();
       console.error('Lovable AI error:', errorText);
-      throw new Error(`SOAP formatting failed: ${errorText}`);
+      
+      // Parse error to provide user-friendly message
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.error || `Erro ao formatar texto: ${errorText}`);
+      } catch (parseError) {
+        throw new Error(`Erro ao formatar texto médico: ${errorText}`);
+      }
     }
 
     const soapResult = await soapResponse.json();
