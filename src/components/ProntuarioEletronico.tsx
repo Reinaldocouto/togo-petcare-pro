@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, Stethoscope, Calendar, Syringe, FileText, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { VaccinationOCRUpload } from "./VaccinationOCRUpload";
 
 interface ProntuarioEletronicoProps {
   client: any;
@@ -370,6 +371,11 @@ export function ProntuarioEletronico({ client, open, onClose }: ProntuarioEletro
 
             {/* Aba Vacinas */}
             <TabsContent value="vacinas" className="space-y-4">
+              <VaccinationOCRUpload
+                petId={pets[0]?.id || ''}
+                onSuccess={loadProntuarioData}
+              />
+
               {vaccinations.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
