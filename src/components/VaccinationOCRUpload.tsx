@@ -338,6 +338,32 @@ export function VaccinationOCRUpload({ pets, onSuccess }: VaccinationOCRUploadPr
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Seleção de Pet */}
+          <div className="space-y-2">
+            <Label htmlFor="pet-select">Selecione o Pet *</Label>
+            <select
+              id="pet-select"
+              value={selectedPetId}
+              onChange={(e) => setSelectedPetId(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isProcessing}
+            >
+              <option value="">Selecione um pet...</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.nome} - {pet.especie}
+                </option>
+              ))}
+            </select>
+            {pets.length === 0 && (
+              <p className="text-xs text-muted-foreground text-yellow-500">
+                Nenhum pet cadastrado para este cliente.
+              </p>
+            )}
+          </div>
+
+          <Separator />
+
           <div className="space-y-2">
             <Label htmlFor="vaccination-image">Imagem da Carteira de Vacinação</Label>
             <Input
@@ -345,7 +371,7 @@ export function VaccinationOCRUpload({ pets, onSuccess }: VaccinationOCRUploadPr
               type="file"
               accept="image/*"
               onChange={handleFileSelect}
-              disabled={isProcessing}
+              disabled={isProcessing || !selectedPetId}
             />
             <p className="text-xs text-muted-foreground">
               Formatos aceitos: PNG, JPG, JPEG. Máximo 20MB.
@@ -377,7 +403,7 @@ export function VaccinationOCRUpload({ pets, onSuccess }: VaccinationOCRUploadPr
 
           <Button
             onClick={processImage}
-            disabled={!selectedFile || isProcessing}
+            disabled={!selectedFile || !selectedPetId || isProcessing}
             className="w-full"
           >
             {isProcessing ? (
