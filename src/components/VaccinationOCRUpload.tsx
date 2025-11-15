@@ -33,51 +33,98 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const parseVaccinationLine = (line: string): VaccinationRecord | null => {
-    // Limpar linha
-    line = line.trim();
-    if (line.length < 5) return null;
-
-    // Regex para datas no formato dd/mm/yyyy ou dd-mm-yyyy
-    const dateRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/g;
-    const dates = [...line.matchAll(dateRegex)].map(match => {
-      const day = match[1].padStart(2, '0');
-      const month = match[2].padStart(2, '0');
-      const year = match[3];
-      return `${year}-${month}-${day}`;
-    });
-
-    if (dates.length === 0) return null;
-
-    // Extrair nome da vacina (tudo antes da primeira data)
-    const firstDateIndex = line.search(dateRegex);
-    let vaccineName = line.substring(0, firstDateIndex).trim();
+  const parseVaccinationData = (text: string): VaccinationRecord[] => {
+    const records: VaccinationRecord[] = [];
+    const lines = text.split('\n');
     
-    // Limpar caracteres especiais do nome
-    vaccineName = vaccineName.replace(/[^\w\s\-]/g, '').trim();
+    console.log("=== TEXTO OCR COMPLETO ===");
+    console.log(text);
+    console.log("=== FIM DO TEXTO ===");
+
+    // Regex melhorada para datas
+    const dateRegex = /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/g;
     
-    if (!vaccineName) return null;
+    // Padrões comuns de vacinas
+    const vaccinePatterns = [
+      /v\d+/i,  // V8, V10, V4, V5
+      /antirrábica/i,
+      /raiva/i,
+      /giardia/i,
+      /gripe\s*canina/i,
+      /leishmaniose/i,
+      /tosse\s*dos\s*canis/i,
+    ];
 
-    // Extrair dose
-    const doseMatch = line.match(/(\d+)[ªa°]\s*dose/i);
-    const dose = doseMatch ? parseInt(doseMatch[1]) : 1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.length < 3) continue;
 
-    // Extrair lote
-    const loteMatch = line.match(/lote[\s:]*([A-Z0-9\-]+)/i);
-    const lote = loteMatch ? loteMatch[1].trim() : null;
+      // Buscar datas na linha
+      const dates = [...line.matchAll(dateRegex)].map(match => {
+        let day = match[1].padStart(2, '0');
+        let month = match[2].padStart(2, '0');
+        let year = match[3];
+        
+        // Corrigir ano com 2 dígitos
+        if (year.length === 2) {
+          year = parseInt(year) > 50 ? `19${year}` : `20${year}`;
+        }
+        
+        return `${year}-${month}-${day}`;
+      });
 
-    // Determinar data de aplicação e próxima data
-    const data_aplicacao = dates[0];
-    const proxima_data = dates.length > 1 ? dates[1] : null;
+      if (dates.length === 0) continue;
 
-    return {
-      vaccine_name: vaccineName,
-      data_aplicacao,
-      dose,
-      proxima_data,
-      lote,
-      confidence: 0.85, // Confiança estimada
-    };
+      // Tentar identificar nome da vacina
+      let vaccineName = '';
+      
+      // Procurar por padrões conhecidos
+      for (const pattern of vaccinePatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          vaccineName = match[0].toUpperCase().trim();
+          break;
+        }
+      }
+
+      // Se não encontrou padrão, pegar texto antes da primeira data
+      if (!vaccineName) {
+        const firstDateMatch = line.match(dateRegex);
+        if (firstDateMatch) {
+          const firstDateIndex = line.indexOf(firstDateMatch[0]);
+          vaccineName = line.substring(0, firstDateIndex).trim();
+          
+          // Limpar caracteres especiais
+          vaccineName = vaccineName.replace(/[^\w\s\-]/g, '').trim();
+        }
+      }
+
+      // Pular se não tem nome válido
+      if (!vaccineName || vaccineName.length < 2) continue;
+
+      // Extrair dose
+      const doseMatch = line.match(/(\d+)[ªa°º]\s*dose/i);
+      const dose = doseMatch ? parseInt(doseMatch[1]) : 1;
+
+      // Extrair lote
+      const loteMatch = line.match(/lote[\s:]*([A-Z0-9\-\/]+)/i);
+      const lote = loteMatch ? loteMatch[1].trim() : null;
+
+      // Criar registro
+      const record: VaccinationRecord = {
+        vaccine_name: vaccineName,
+        data_aplicacao: dates[0],
+        dose,
+        proxima_data: dates.length > 1 ? dates[1] : null,
+        lote,
+        confidence: 0.75,
+      };
+
+      console.log("Registro extraído:", record);
+      records.push(record);
+    }
+
+    return records;
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,16 +188,8 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
 
       console.log("Texto OCR extraído:", text);
 
-      // 3. Parse do texto extraído
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
-      const records: VaccinationRecord[] = [];
-
-      for (const line of lines) {
-        const record = parseVaccinationLine(line);
-        if (record) {
-          records.push(record);
-        }
-      }
+      // 3. Parse do texto extraído com lógica melhorada
+      const records = parseVaccinationData(text);
 
       setProgress(90);
 
@@ -292,7 +331,10 @@ export function VaccinationOCRUpload({ petId, onSuccess }: VaccinationOCRUploadP
             <CardTitle>Adicionar Vacinas via OCR</CardTitle>
           </div>
           <CardDescription>
-            Envie uma foto da carteira de vacinação e o sistema extrairá os dados automaticamente
+            Envie uma foto da carteira de vacinação e o sistema extrairá os dados automaticamente.
+            <br />
+            <strong>Dica:</strong> Para melhores resultados, use imagens nítidas com boa iluminação. 
+            Carteiras com dados em formato de tabela podem ter reconhecimento parcial.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
