@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Syringe, ShoppingCart, Calendar } from "lucide-react";
+import { Syringe, ShoppingCart, Calendar, Mic, Square, Play, Pause, Loader2 } from "lucide-react";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Client {
   id: string;
@@ -81,6 +83,10 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
   const [dose, setDose] = useState(1);
   const [lote, setLote] = useState("");
   const [proximaData, setProximaData] = useState("");
+  
+  // AI Assistant states
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const audioRecorder = useAudioRecorder();
 
   useEffect(() => {
     if (open) {
@@ -277,6 +283,61 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
 
   const totalVenda = saleItems.reduce((sum, item) => sum + item.total, 0);
 
+  const handleStartRecording = async () => {
+    try {
+      await audioRecorder.startRecording();
+      toast.success("Gravação iniciada");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao iniciar gravação");
+    }
+  };
+
+  const handleStopAndTranscribe = async () => {
+    try {
+      setIsTranscribing(true);
+      const audioBase64 = await audioRecorder.stopRecording();
+      
+      if (!audioBase64) {
+        toast.error("Nenhum áudio gravado");
+        setIsTranscribing(false);
+        return;
+      }
+
+      toast.info("Processando transcrição...");
+
+      const selectedPetData = pets.find(p => p.id === selectedPet);
+      
+      const { data, error } = await supabase.functions.invoke('medical-transcription', {
+        body: { 
+          audio: audioBase64,
+          petName: selectedPetData?.nome,
+          species: selectedPetData?.especie
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.soap) {
+        setAnamnese(data.soap.subjetivo || anamnese);
+        setExame(data.soap.objetivo || exame);
+        setDiagnostico(data.soap.avaliacao || diagnostico);
+        setTratamento(data.soap.plano || tratamento);
+        toast.success("Transcrição concluída! Revise os campos antes de salvar.");
+      }
+    } catch (error: any) {
+      console.error('Transcription error:', error);
+      toast.error("Erro ao processar transcrição: " + error.message);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const formatRecordingTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-full max-h-screen h-screen overflow-y-auto p-0">
@@ -343,6 +404,98 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
             </TabsContent>
 
             <TabsContent value="anamnese" className="space-y-4">
+              {/* AI Assistant Recording Section */}
+              <Alert className="border-primary/20 bg-primary/5">
+                <AlertDescription>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mic className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Assistente IA - Residente</span>
+                      </div>
+                      {audioRecorder.isRecording && (
+                        <span className="text-sm font-mono text-muted-foreground">
+                          {formatRecordingTime(audioRecorder.recordingTime)}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Grave sua fala durante o atendimento e o sistema irá transcrever e formatar automaticamente no padrão SOAP.
+                    </p>
+
+                    <div className="flex gap-2">
+                      {!audioRecorder.isRecording && !isTranscribing && (
+                        <Button 
+                          onClick={handleStartRecording}
+                          disabled={!selectedPet}
+                          size="sm"
+                          variant="default"
+                        >
+                          <Mic className="h-4 w-4 mr-2" />
+                          Iniciar Gravação
+                        </Button>
+                      )}
+
+                      {audioRecorder.isRecording && !audioRecorder.isPaused && (
+                        <>
+                          <Button 
+                            onClick={audioRecorder.pauseRecording}
+                            size="sm"
+                            variant="secondary"
+                          >
+                            <Pause className="h-4 w-4 mr-2" />
+                            Pausar
+                          </Button>
+                          <Button 
+                            onClick={handleStopAndTranscribe}
+                            size="sm"
+                            variant="default"
+                          >
+                            <Square className="h-4 w-4 mr-2" />
+                            Finalizar e Transcrever
+                          </Button>
+                        </>
+                      )}
+
+                      {audioRecorder.isRecording && audioRecorder.isPaused && (
+                        <>
+                          <Button 
+                            onClick={audioRecorder.resumeRecording}
+                            size="sm"
+                            variant="secondary"
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Retomar
+                          </Button>
+                          <Button 
+                            onClick={handleStopAndTranscribe}
+                            size="sm"
+                            variant="default"
+                          >
+                            <Square className="h-4 w-4 mr-2" />
+                            Finalizar e Transcrever
+                          </Button>
+                        </>
+                      )}
+
+                      {isTranscribing && (
+                        <Button size="sm" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processando...
+                        </Button>
+                      )}
+                    </div>
+
+                    {!selectedPet && (
+                      <p className="text-xs text-yellow-600">
+                        Selecione um pet na aba "Paciente" para habilitar a gravação.
+                      </p>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+
               <div className="space-y-2">
                 <Label htmlFor="anamnese">Anamnese (Subjetivo)</Label>
                 <Textarea
