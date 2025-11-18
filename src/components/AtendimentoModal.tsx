@@ -85,7 +85,7 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
   const [proximaData, setProximaData] = useState("");
   
   // Speech recognition
-  const { startListening, isListening } = useSpeechRecognition();
+  const { startListening, isListening, isReady } = useSpeechRecognition();
 
   useEffect(() => {
     if (open) {
@@ -394,7 +394,9 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
                     disabled={isListening}
                   >
                     <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
-                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                    {isListening && !isReady && 'Preparando...'}
+                    {isListening && isReady && '🔴 Pode falar!'}
+                    {!isListening && '🎤 Ditar'}
                   </Button>
                 </div>
                 <Textarea
@@ -417,7 +419,9 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
                     disabled={isListening}
                   >
                     <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
-                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                    {isListening && !isReady && 'Preparando...'}
+                    {isListening && isReady && '🔴 Pode falar!'}
+                    {!isListening && '🎤 Ditar'}
                   </Button>
                 </div>
                 <Textarea
@@ -440,7 +444,9 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
                     disabled={isListening}
                   >
                     <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
-                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                    {isListening && !isReady && 'Preparando...'}
+                    {isListening && isReady && '🔴 Pode falar!'}
+                    {!isListening && '🎤 Ditar'}
                   </Button>
                 </div>
                 <Textarea
@@ -463,7 +469,9 @@ export function AtendimentoModal({ open, onOpenChange, prefilledClientId, onSave
                     disabled={isListening}
                   >
                     <Mic className={`h-4 w-4 mr-2 ${isListening ? 'text-red-500 animate-pulse' : ''}`} />
-                    {isListening ? 'Ouvindo...' : '🎤 Ditar'}
+                    {isListening && !isReady && 'Preparando...'}
+                    {isListening && isReady && '🔴 Pode falar!'}
+                    {!isListening && '🎤 Ditar'}
                   </Button>
                 </div>
                 <Textarea

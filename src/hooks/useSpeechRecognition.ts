@@ -26,6 +26,7 @@ declare global {
 
 export function useSpeechRecognition() {
   const [isListening, setIsListening] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const startListening = useCallback((onResult: (text: string) => void, onError?: (error: string) => void) => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
@@ -44,6 +45,8 @@ export function useSpeechRecognition() {
 
     recognition.onstart = () => {
       setIsListening(true);
+      // Pequeno delay para garantir que o sistema está realmente pronto
+      setTimeout(() => setIsReady(true), 300);
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -52,19 +55,22 @@ export function useSpeechRecognition() {
       const medicalText = convertToMedicalTerms(transcript);
       onResult(medicalText);
       setIsListening(false);
+      setIsReady(false);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       setIsListening(false);
+      setIsReady(false);
       if (onError) onError(event.error);
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      setIsReady(false);
     };
 
     recognition.start();
   }, []);
 
-  return { startListening, isListening };
+  return { startListening, isListening, isReady };
 }
