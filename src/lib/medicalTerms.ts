@@ -38,6 +38,9 @@ const medicalDictionary: Record<string, string> = {
   'está vomitando': 'apresenta episódios de êmese',
   'tá vomitando': 'apresenta episódios de êmese',
   'fez cocô mole': 'apresenta episódio de diarreia',
+  'fez muito cocô mole': 'apresenta episódio de diarreia intensa',
+  'fiz cocô mole': 'apresenta episódio de diarreia',
+  'fiz muito cocô mole': 'apresenta episódio de diarreia intensa',
   'fazendo cocô mole': 'apresenta episódio de diarreia',
   'está fazendo cocô mole': 'apresenta episódio de diarreia',
   'tá fazendo cocô mole': 'apresenta episódio de diarreia',
@@ -103,6 +106,12 @@ export function convertToMedicalTerms(text: string): string {
   
   // Capitaliza a primeira letra
   convertedText = convertedText.charAt(0).toUpperCase() + convertedText.slice(1);
+  
+  // Remove duplicações comuns geradas por substituições encadeadas
+  convertedText = convertedText
+    .replace(/(apresenta episódio de\s+){2,}/gi, 'apresenta episódio de ')
+    .replace(/(apresentando episódios de\s+){2,}/gi, 'apresentando episódios de ')
+    .replace(/(com lesão\s+){2,}/gi, 'com lesão ');
   
   // Adiciona "Paciente" no início se não houver sujeito claro
   if (!convertedText.match(/^(paciente|animal)/i)) {
