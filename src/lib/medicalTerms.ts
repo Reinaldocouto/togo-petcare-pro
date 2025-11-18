@@ -35,11 +35,19 @@ const medicalDictionary: Record<string, string> = {
   // Sintomas gastrointestinais
   'vomitou': 'apresentou episódio de êmese',
   'vomitando': 'apresentando episódios de êmese',
-  'fez cocô mole': 'apresentou episódio de diarreia',
-  'diarreia': 'episódio de diarreia',
+  'está vomitando': 'apresenta episódios de êmese',
+  'tá vomitando': 'apresenta episódios de êmese',
+  'fez cocô mole': 'apresenta episódio de diarreia',
+  'fazendo cocô mole': 'apresenta episódio de diarreia',
+  'está fazendo cocô mole': 'apresenta episódio de diarreia',
+  'tá fazendo cocô mole': 'apresenta episódio de diarreia',
+  'com diarreia': 'apresenta episódio de diarreia',
+  'diarreia': 'apresenta episódio de diarreia',
   'não quer comer': 'apresenta hiporexia',
   'não está comendo': 'apresenta anorexia',
+  'não tá comendo': 'apresenta anorexia',
   'comendo pouco': 'apresenta hiporexia',
+  'tá comendo pouco': 'apresenta hiporexia',
   
   // Respiratório
   'tossindo': 'apresenta tosse',
@@ -79,9 +87,17 @@ export function convertToMedicalTerms(text: string): string {
   
   let convertedText = text.toLowerCase();
   
+  // Remove "o paciente" ou "a paciente" do início para evitar duplicação
+  convertedText = convertedText.replace(/^(o paciente|a paciente)\s+/i, '');
+  
+  // Ordena as entradas do dicionário por tamanho (maior para menor) para evitar substituições parciais
+  const sortedEntries = Object.entries(medicalDictionary).sort((a, b) => b[0].length - a[0].length);
+  
   // Aplica todas as substituições do dicionário
-  Object.entries(medicalDictionary).forEach(([colloquial, technical]) => {
-    const regex = new RegExp(`\\b${colloquial}\\b`, 'gi');
+  sortedEntries.forEach(([colloquial, technical]) => {
+    // Escapa caracteres especiais do regex
+    const escapedColloquial = colloquial.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedColloquial, 'gi');
     convertedText = convertedText.replace(regex, technical);
   });
   
@@ -89,7 +105,7 @@ export function convertToMedicalTerms(text: string): string {
   convertedText = convertedText.charAt(0).toUpperCase() + convertedText.slice(1);
   
   // Adiciona "Paciente" no início se não houver sujeito claro
-  if (!convertedText.match(/^(paciente|animal|o paciente|a paciente)/i)) {
+  if (!convertedText.match(/^(paciente|animal)/i)) {
     convertedText = `Paciente ${convertedText}`;
   }
   
