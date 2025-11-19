@@ -308,7 +308,7 @@ export default function Clientes() {
           <h1 className="text-3xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">Gerencie seus clientes</p>
         </div>
-        <Dialog open={open} onOpenChange={handleCloseDialog}>
+        <Dialog open={open} onOpenChange={(isOpen) => { isOpen ? setOpen(true) : handleCloseDialog(); }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
