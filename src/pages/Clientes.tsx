@@ -16,8 +16,8 @@ import { ProntuarioEletronico } from "@/components/ProntuarioEletronico";
 
 const clientSchema = z.object({
   nome: z.string().min(2, "Nome deve ter no mínimo 2 caracteres").max(100),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
-  telefone: z.string().min(10, "Telefone inválido").max(20),
+  email: z.string().email("Email inválido").or(z.literal("")).optional(),
+  telefone: z.string().min(1, "Telefone é obrigatório"),
   cpf_cnpj: z.string().optional(),
   observacoes: z.string().optional(),
   endereco: z.object({
@@ -234,6 +234,7 @@ export default function Clientes() {
       setEditingClient(null);
       loadClients();
     } catch (error) {
+      console.error("Erro ao salvar cliente:", error);
       if (error instanceof z.ZodError) {
         toast({
           variant: "destructive",
@@ -241,10 +242,11 @@ export default function Clientes() {
           description: error.errors[0].message,
         });
       } else {
+        const errorMessage = error instanceof Error ? error.message : "Tente novamente";
         toast({
           variant: "destructive",
           title: "Erro ao cadastrar",
-          description: "Tente novamente",
+          description: errorMessage,
         });
       }
     } finally {
