@@ -9,8 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, FileText, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, FileText, Trash2, MoreVertical } from "lucide-react";
 import { z } from "zod";
 import { ProntuarioEletronico } from "@/components/ProntuarioEletronico";
 
@@ -45,11 +47,14 @@ const petSchema = z.object({
 
 export default function Clientes() {
   const [clients, setClients] = useState<any[]>([]);
+  const [clientPets, setClientPets] = useState<Record<string, any[]>>({});
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
   const [selectedClientForProntuario, setSelectedClientForProntuario] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<{ type: 'client' | 'pet', id: string, name: string } | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -98,6 +103,25 @@ export default function Clientes() {
       });
     } else {
       setClients(data || []);
+      
+      // Carregar pets de cada cliente
+      if (data) {
+        const petsPromises = data.map(client => 
+          supabase
+            .from('pets')
+            .select('*')
+            .eq('client_id', client.id)
+        );
+        
+        const petsResults = await Promise.all(petsPromises);
+        const petsMap: Record<string, any[]> = {};
+        
+        data.forEach((client, index) => {
+          petsMap[client.id] = petsResults[index].data || [];
+        });
+        
+        setClientPets(petsMap);
+      }
     }
   };
 
@@ -137,6 +161,79 @@ export default function Clientes() {
       title: "Pet removido",
       description: "Pet removido da lista",
     });
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      // Primeiro deletar os pets do cliente
+      const { error: petsError } = await supabase
+        .from('pets')
+        .delete()
+        .eq('client_id', clientId);
+
+      if (petsError) throw petsError;
+
+      // Depois deletar o cliente
+      const { error: clientError } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId);
+
+      if (clientError) throw clientError;
+
+      toast({
+        title: "Cliente deletado!",
+        description: "Cliente e seus pets foram removidos com sucesso.",
+      });
+
+      loadClients();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao deletar cliente",
+        description: error.message,
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingItem(null);
+    }
+  };
+
+  const handleDeletePet = async (petId: string) => {
+    try {
+      const { error } = await supabase
+        .from('pets')
+        .delete()
+        .eq('id', petId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pet deletado!",
+        description: "Pet removido com sucesso.",
+      });
+
+      loadClients();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao deletar pet",
+        description: error.message,
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingItem(null);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deletingItem) return;
+    
+    if (deletingItem.type === 'client') {
+      handleDeleteClient(deletingItem.id);
+    } else {
+      handleDeletePet(deletingItem.id);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -683,7 +780,7 @@ export default function Clientes() {
                   <TableCell>{client.email || "-"}</TableCell>
                   <TableCell>{client.cpf_cnpj || "-"}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -702,6 +799,48 @@ export default function Clientes() {
                       >
                         <FileText className="h-4 w-4" />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Mais opções"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              setDeletingItem({ type: 'client', id: client.id, name: client.nome });
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Deletar Cliente
+                          </DropdownMenuItem>
+                          {clientPets[client.id]?.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {clientPets[client.id].map((pet: any) => (
+                                <DropdownMenuItem
+                                  key={pet.id}
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    setDeletingItem({ type: 'pet', id: pet.id, name: pet.nome });
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Deletar Pet: {pet.nome}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -718,6 +857,31 @@ export default function Clientes() {
           onClose={() => setSelectedClientForProntuario(null)}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingItem?.type === 'client' 
+                ? `Você está prestes a deletar permanentemente o cliente "${deletingItem.name}" e todos os seus pets. Esta ação não pode ser desfeita.`
+                : `Você está prestes a deletar permanentemente o pet "${deletingItem?.name}". Esta ação não pode ser desfeita.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingItem(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deletar para sempre
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
