@@ -101,6 +101,44 @@ export default function Clientes() {
     }
   };
 
+  const handleAddPet = () => {
+    try {
+      petSchema.parse(currentPet);
+      setPets([...pets, { ...currentPet, id: Date.now() }]);
+      setCurrentPet({
+        nome: "",
+        especie: "",
+        raca: "",
+        sexo: "",
+        nascimento: "",
+        castrado: false,
+        cor: "",
+        microchip: "",
+        alergias: "",
+      });
+      toast({
+        title: "Pet adicionado!",
+        description: "Pet adicionado à lista. Salve o cliente para confirmar.",
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: error.errors[0].message,
+        });
+      }
+    }
+  };
+
+  const handleRemovePet = (petId: number) => {
+    setPets(pets.filter(p => p.id !== petId));
+    toast({
+      title: "Pet removido",
+      description: "Pet removido da lista",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -124,6 +162,8 @@ export default function Clientes() {
             email: validData.email || null,
             telefone: validData.telefone,
             cpf_cnpj: validData.cpf_cnpj,
+            observacoes: validData.observacoes || null,
+            endereco: validData.endereco || null,
           })
           .eq('id', editingClient.id);
 
@@ -135,26 +175,62 @@ export default function Clientes() {
         });
       } else {
         // Criar novo cliente
-        const { error } = await supabase
+        const { data: newClient, error: clientError } = await supabase
           .from('clients')
           .insert([{
             nome: validData.nome,
             email: validData.email || null,
             telefone: validData.telefone,
             cpf_cnpj: validData.cpf_cnpj,
+            observacoes: validData.observacoes || null,
+            endereco: validData.endereco || null,
             clinic_id: userRole?.clinic_id,
-          }]);
+          }])
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (clientError) throw clientError;
+
+        // Cadastrar pets associados ao cliente
+        if (pets.length > 0 && newClient) {
+          const petsToInsert = pets.map(pet => ({
+            ...pet,
+            id: undefined,
+            client_id: newClient.id,
+            clinic_id: userRole?.clinic_id,
+          }));
+
+          const { error: petsError } = await supabase
+            .from('pets')
+            .insert(petsToInsert);
+
+          if (petsError) throw petsError;
+        }
 
         toast({
           title: "Cliente cadastrado!",
-          description: "Cliente adicionado com sucesso",
+          description: `Cliente e ${pets.length} pet(s) adicionados com sucesso`,
         });
       }
 
       setOpen(false);
-      setFormData({ nome: "", email: "", telefone: "", cpf_cnpj: "" });
+      setFormData({ 
+        nome: "", 
+        email: "", 
+        telefone: "", 
+        cpf_cnpj: "",
+        observacoes: "",
+        endereco: {
+          rua: "",
+          numero: "",
+          complemento: "",
+          bairro: "",
+          cidade: "",
+          estado: "",
+          cep: "",
+        },
+      });
+      setPets([]);
       setEditingClient(null);
       loadClients();
     } catch (error) {
