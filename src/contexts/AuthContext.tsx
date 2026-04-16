@@ -29,10 +29,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+        setLoading(false);
+      } else {
+        // Auto-login para modo de testes (pula tela de autenticação)
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: "teste@teste.com",
+          password: "123456",
+        });
+        if (error) {
+          console.error("Auto-login falhou:", error.message);
+        } else {
+          setSession(data.session);
+          setUser(data.user);
+        }
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
